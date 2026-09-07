@@ -16,6 +16,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.text.ParseException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPrivateKey;
@@ -164,7 +165,7 @@ class JwtTokenGeneratorTest {
         @Test
         @DisplayName("contient iss, sub et aud")
         void contientLesClaimsDIdentite() throws Exception {
-            JWTClaimsSet claims = SignedJWT.parse(generator.generateToken(SUBJECT)).getJWTClaimsSet();
+            JWTClaimsSet claims = claimsDe(generator.generateToken(SUBJECT));
 
             assertThat(claims.getIssuer()).isEqualTo(ISSUER);
             assertThat(claims.getSubject()).isEqualTo(SUBJECT);
@@ -174,7 +175,7 @@ class JwtTokenGeneratorTest {
         @Test
         @DisplayName("declare iat a la seconde exacte de l'horloge injectee")
         void iatCorrespondALHorlogeFixe() throws Exception {
-            JWTClaimsSet claims = SignedJWT.parse(generator.generateToken(SUBJECT)).getJWTClaimsSet();
+            JWTClaimsSet claims = claimsDe(generator.generateToken(SUBJECT));
 
             assertThat(claims.getIssueTime().toInstant())
                     .isEqualTo(NOW.truncatedTo(ChronoUnit.SECONDS));
@@ -183,7 +184,7 @@ class JwtTokenGeneratorTest {
         @Test
         @DisplayName("declare exp a iat + duree de validite, sans approximation")
         void expCorrespondALaDureeDeValidite() throws Exception {
-            JWTClaimsSet claims = SignedJWT.parse(generator.generateToken(SUBJECT)).getJWTClaimsSet();
+            JWTClaimsSet claims = claimsDe(generator.generateToken(SUBJECT));
 
             assertThat(claims.getExpirationTime().toInstant())
                     .isEqualTo(NOW.truncatedTo(ChronoUnit.SECONDS).plus(TOKEN_VALIDITY));
@@ -194,11 +195,28 @@ class JwtTokenGeneratorTest {
         }
 
         @Test
-        @DisplayName("expose exactement les cinq claims attendus")
+        @DisplayName("expose exactement les six claims attendus")
         void nExposeQueLesClaimsAttendus() throws Exception {
-            JWTClaimsSet claims = SignedJWT.parse(generator.generateToken(SUBJECT)).getJWTClaimsSet();
+            JWTClaimsSet claims = claimsDe(generator.generateToken(SUBJECT));
 
-            assertThat(claims.getClaims()).containsOnlyKeys("iss", "sub", "aud", "iat", "exp");
+            assertThat(claims.getClaims()).containsOnlyKeys("iss", "sub", "aud", "iat", "exp", "jti");
+        }
+
+        @Test
+        @DisplayName("porte un jti non vide")
+        void porteUnJtiNonVide() throws Exception {
+            JWTClaimsSet claims = claimsDe(generator.generateToken(SUBJECT));
+
+            assertThat(claims.getJWTID()).isNotBlank();
+        }
+
+        @Test
+        @DisplayName("attribue un jti different a chaque jeton, a sujet et horloge identiques")
+        void attribueUnJtiUniqueParJeton() throws Exception {
+            String premierJti = claimsDe(generator.generateToken(SUBJECT)).getJWTID();
+            String secondJti = claimsDe(generator.generateToken(SUBJECT)).getJWTID();
+
+            assertThat(premierJti).isNotEqualTo(secondJti);
         }
 
         @Test
@@ -208,8 +226,8 @@ class JwtTokenGeneratorTest {
             JwtTokenGenerator generateurPlusTard = new JwtTokenGenerator(
                     rsaKeyProvider, Clock.fixed(plusTard, ZoneOffset.UTC), ISSUER, AUDIENCE, TOKEN_VALIDITY);
 
-            JWTClaimsSet premier = SignedJWT.parse(generator.generateToken(SUBJECT)).getJWTClaimsSet();
-            JWTClaimsSet second = SignedJWT.parse(generateurPlusTard.generateToken(SUBJECT)).getJWTClaimsSet();
+            JWTClaimsSet premier = claimsDe(generator.generateToken(SUBJECT));
+            JWTClaimsSet second = claimsDe(generateurPlusTard.generateToken(SUBJECT));
 
             assertThat(Duration.between(
                     premier.getIssueTime().toInstant(),
@@ -231,11 +249,24 @@ class JwtTokenGeneratorTest {
                     .isThrownBy(() -> generator.generateToken(sujetInvalide));
         }
 
-        @Test
-        @DisplayName("produit des jetons distincts pour des sujets distincts")
-        void produitDesJetonsDistinctsParSujet() {
-            assertThat(generator.generateToken("alice"))
-                    .isNotEqualTo(generator.generateToken("bob"));
+        /**
+         * Remplace l'ancien test de distinction de jetons : depuis l'introduction du jti,
+         * deux jetons different toujours, y compris si le sujet etait ignore. La propriete
+         * reellement utile est le report du sujet fourni dans le claim sub, verifiee ici sur
+         * plusieurs valeurs pour exclure une constante codee en dur et couvrir l'encodage
+         * Base64URL du payload JSON.
+         */
+        @ParameterizedTest
+        @ValueSource(strings = {"alice", "bob", "utilisateur-42", "prénom.accentué", "u"})
+        @DisplayName("reporte le sujet fourni dans le claim sub")
+        void reporteLeSujetFourniDansLeClaimSub(String sujet) throws Exception {
+            JWTClaimsSet claims = claimsDe(generator.generateToken(sujet));
+
+            assertThat(claims.getSubject()).isEqualTo(sujet);
         }
+    }
+
+    private static JWTClaimsSet claimsDe(String token) throws ParseException {
+        return SignedJWT.parse(token).getJWTClaimsSet();
     }
 }

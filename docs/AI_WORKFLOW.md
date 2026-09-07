@@ -34,3 +34,24 @@ Crée moi l'interface RsaKeyProvider dans le package com.portagecybertech.certvi
 4. Prompt implémentation générateur de token
 
 Maintenant, crée-moi la classe JwtTokenGenerator dans le même package. Elle doit générer et signer un JWT avec Nimbus (RS256) via une méthode generateToken(String subject). Injecte RsaKeyProvider, Clock, issuer, audience et validity dans le constructeur. N'oublie pas d'ajouter une vérification sur le subject (qu'il soit présent) et de gérer la date d'émission tronquée à la seconde via la Clock.
+
+5. Prompt TDD Rouge pour l'unicité des jetons via le claim jti
+
+On passe au cycle TDD pour ajouter un jti (JWT ID — l'identifiant unique du jeton utilisé pour éviter les attaques par rejeu, permettre la révocation et essentiel pour l'audit des jetons) dans JwtTokenGeneratorTest : Dans la classe Claims, ajoute deux tests : Le jeton contient un jti non vide (claims.getJWTID()). Deux appels successifs (même sujet, même horloge) produisent deux jti différents. Ajoute "jti" à la liste dans nExposeQueLesClaimsAttendus. propose moi plusieurs nouvelles approches pour le test produitDesJetonsDistinctsParSujet selon l'impact de ce nouvel identifiant unique avec pos/cons à l'appui pour que je décide de la décision à suivre. Lance .\mvnw test et montre-moi le rouge.
+    Résultat: Les tests on bien été écris avec nExposeQueLesClaimsAttendus qui est repassé au rouge ce qui est normal, nous sommes au rouge pour les deux nouveaux. 4 proposition pour produitDesJetonsDistinctsParSujet: A — Asserter le claim sub, pas la chaîne du jeton B — Comparer les payloads en excluant jti C — Supprimer le test D — Paramétrer sur plusieurs sujets
+    Je retiens D: Le point décisif est la constante codée en dur. Avec un seul sujet testé, une implémentation qui écrirait .subject("utilisateur-certview") en dur passerait tous les tests. C'est improbable dans du code écrit à la main, beaucoup moins improbable dans du code généré. Deux valeurs suffisent à fermer ce trou ; le paramétrage est simplement la façon propre de le faire.
+
+6. Prompt de validation de l'option D du prompt(5)
+
+Je valide l'option D.
+    Résultat: il fait l'implémentation, et m'ajoute un helper "claimsDe" dans la classe globale de test, sauf qu'il ne généralise pas son utilisation pour les autres tests qui utilisent encore SignedJWT.parse(...).getJWTClaimsSet() en entier. Je vais lui demander de généraliser. 
+
+7. Prompt pour uniformiser l'utilisation du helper claimsDe
+
+Les autres tests continuent encore d'écrire SignedJWT.parse(...).getJWTClaimsSet() en entier. Je veux que tu généralise l'utilisation du helper que tu as créé. Fais moi savoir le nombre de modification effectuées et tous les endroits refactorisés.
+    Résultat: il fait la réfactorisation, sauf pour des cas particulier et m'explique pourquoi.
+
+8. Prompt TDD Vert pour l'implémentation du jti
+
+Implémente la génération du jti dans JwtTokenGenerator (par exemple avec UUID.randomUUID().toString()) et ajoute-le aux claims du JWT. Relance .\mvnw test pour confirmer que tous les tests repassent au vert.
+    Résultat: Implémentation effectué et tout est au vert.

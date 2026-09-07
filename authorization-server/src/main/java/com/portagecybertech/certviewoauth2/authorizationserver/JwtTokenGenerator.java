@@ -12,6 +12,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
+import java.util.UUID;
 
 /**
  * Emet des jetons d'acces JWT signes en RS256.
@@ -60,6 +61,7 @@ public class JwtTokenGenerator {
                 .issuer(issuer)
                 .subject(subject)
                 .audience(audience)
+                .jwtID(UUID.randomUUID().toString())
                 .issueTime(Date.from(issuedAt))
                 .expirationTime(Date.from(issuedAt.plus(validity)))
                 .build();

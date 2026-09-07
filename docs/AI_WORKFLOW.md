@@ -55,3 +55,27 @@ Les autres tests continuent encore d'écrire SignedJWT.parse(...).getJWTClaimsSe
 
 Implémente la génération du jti dans JwtTokenGenerator (par exemple avec UUID.randomUUID().toString()) et ajoute-le aux claims du JWT. Relance .\mvnw test pour confirmer que tous les tests repassent au vert.
     Résultat: Implémentation effectué et tout est au vert.
+
+9. Prompt TDD Rouge pour l'implémentation de InMemoryRsaKeyProvider
+
+On passe au cycle TDD pour la classe InMemoryRsaKeyProvider (qui implémente RsaKeyProvider) dans le même package : Dans InMemoryRsaKeyProviderTest, écris deux tests : 1. Elle expose une clé privée RSA non nulle et un kid non nul/non vide. 2. Le kid correspond exactement au Thumbprint / à l'empreinte de la clé publique (calculé via SHA-256), et non à un UUID ou une valeur arbitraire. Exécute .\mvnw test et montre-moi le rouge.
+
+Résultat: deux nouveaux tests au rouge. Point d'ambiguité soulevé par l'assistant: Pour recalculer l'empreinte, le test a besoin de la clé publique. Or RsaKeyProvider ne déclare que getPrivateKey() et getKeyId(). J'ai donc écrit le test contre provider.getPublicKey(), ce qui ajoute une méthode à InMemoryRsaKeyProvider — sur la classe concrète, pas sur l'interface. Ma décision: Ajouter getPublicKey() à l'interface.
+
+10. Prompt pour ajouter getPublicKey() à l'interface
+
+Ajoute getPublickKey() à l'interface.
+Résultat: Contrat établi
+
+11. Prompt d'amélioration des tests du prompt (9)
+Pour le test RSA : Au lieu de juste tester getAlgorithm() == "RSA", vérifie plutôt la taille de la clé, c'est plus solide. Remplace com.nimbusds.jose.util.Base64URL par le JDK standard : java.util.Base64.getUrlEncoder().withoutPadding().
+
+12. Prompt d'ajout d'un test de stabilité sur getKeyId() (gage d'une non regression)
+Ajoute un test de stabilité dans InMemoryRsaKeyProviderTest qui appelle getKeyId() deux fois et vérifie que c'est exactement la même valeur. Lance .\mvnw test et confirme-moi que le test échoue bien avant qu'on ne retouche à l'implémentation.
+    Résultat: OK
+
+13. Prompt d'implémentation de InMemoryRsaKeyProvider
+Implémente la classe InMemoryRsaKeyProvider. Dans le constructeur : Génère une paire de clés RSA 2048 bits. Calcule le kid une seule fois via RSAKey.computeThumbprint() de Nimbus (ou votre calcul JWK) pour la stabilité. Stocke la clé privée, la clé publique et le kid dans des champs final. Relance .\mvnw test et vérifie que tous les tests repassent bien au vert.
+    Résultat: Tout est correct, l'implémentation est réussie.
+
+14. 

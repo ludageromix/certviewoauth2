@@ -1,6 +1,7 @@
 package com.portagecybertech.certviewoauth2.authorizationserver;
 
 import java.security.interfaces.RSAPrivateKey;
+import java.security.interfaces.RSAPublicKey;
 
 /**
  * Abstraction fournissant la cle privee RSA de signature et son identifiant.
@@ -14,6 +15,12 @@ public interface RsaKeyProvider {
      * @return la cle privee RSA utilisee pour signer les jetons
      */
     RSAPrivateKey getPrivateKey();
+
+    /**
+     * @return la cle publique RSA correspondante, destinee a la verification des signatures
+     *         et a la publication du JWKS
+     */
+    RSAPublicKey getPublicKey();
 
     /**
      * @return le {@code kid} publie dans l'en-tete JOSE, permettant au consommateur

@@ -45,7 +45,7 @@ import static org.mockito.Mockito.verify;
 class JwtTokenGeneratorTest {
 
     private static final String ISSUER = "https://auth.certview.local";
-    private static final String AUDIENCE = "certview-api";
+    private static final String AUDIENCE = "certview-resource-api";
     private static final Duration TOKEN_VALIDITY = Duration.ofMinutes(15);
     private static final String KEY_ID = "certview-signing-key-2026";
     private static final String SUBJECT = "utilisateur-certview";

@@ -18,7 +18,7 @@ class PingControllerTest {
     private MockMvc mockMvc;
 
     @Test 
-    void repondPongSurLeEndpointPing() throws Exception{
+    void repondPongSurLeEndpointPing() throws Exception {
         mockMvc.perform(get("/ping"))
             .andExpect(status().isOk())
             .andExpect(content().string("pong"));

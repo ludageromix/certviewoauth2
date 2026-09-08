@@ -92,7 +92,7 @@ class JwtTokenGeneratorTest {
         @Test
         @DisplayName("déclare être signé avec l'algorithme RS256")
         void utiliseLAlgorithmeRs256() throws Exception {
-            SignedJWT jwt = SignedJWT.parse(generator.generateToken(SUBJECT));
+            SignedJWT jwt = SignedJWT.parse(generator.generateToken(SUBJECT).token());
 
             assertThat(jwt.getHeader().getAlgorithm()).isEqualTo(JWSAlgorithm.RS256);
         }
@@ -100,7 +100,7 @@ class JwtTokenGeneratorTest {
         @Test
         @DisplayName("porte le kid fourni par le RsaKeyProvider")
         void exposeLeKidDuProvider() throws Exception {
-            SignedJWT jwt = SignedJWT.parse(generator.generateToken(SUBJECT));
+            SignedJWT jwt = SignedJWT.parse(generator.generateToken(SUBJECT).token());
 
             assertThat(jwt.getHeader().getKeyID()).isEqualTo(KEY_ID);
         }
@@ -108,7 +108,7 @@ class JwtTokenGeneratorTest {
         @Test
         @DisplayName("place le kid dans l'en-tete et non dans le payload")
         void leKidResteDansLEnTete() throws Exception {
-            SignedJWT jwt = SignedJWT.parse(generator.generateToken(SUBJECT));
+            SignedJWT jwt = SignedJWT.parse(generator.generateToken(SUBJECT).token());
 
             assertThat(jwt.getHeader().getKeyID()).isEqualTo(KEY_ID);
             assertThat(jwt.getJWTClaimsSet().getClaim("kid")).isNull();
@@ -117,7 +117,7 @@ class JwtTokenGeneratorTest {
         @Test
         @DisplayName("est produit dans la serialisation compacte a trois segments")
         void produitUnJwtCompact() {
-            String token = generator.generateToken(SUBJECT);
+            String token = generator.generateToken(SUBJECT).token();
 
             assertThat(token).isNotBlank();
             assertThat(token.split("\\.")).hasSize(3);
@@ -131,7 +131,7 @@ class JwtTokenGeneratorTest {
         @Test
         @DisplayName("est verifiable avec la cle publique correspondante")
         void signatureVerifiableAvecLaClePublique() throws Exception {
-            SignedJWT jwt = SignedJWT.parse(generator.generateToken(SUBJECT));
+            SignedJWT jwt = SignedJWT.parse(generator.generateToken(SUBJECT).token());
 
             assertThat(jwt.verify(new RSASSAVerifier(publicKey))).isTrue();
         }
@@ -143,7 +143,7 @@ class JwtTokenGeneratorTest {
             keyPairGenerator.initialize(2048);
             RSAPublicKey autreClePublique = (RSAPublicKey) keyPairGenerator.generateKeyPair().getPublic();
 
-            SignedJWT jwt = SignedJWT.parse(generator.generateToken(SUBJECT));
+            SignedJWT jwt = SignedJWT.parse(generator.generateToken(SUBJECT).token());
 
             assertThat(jwt.verify(new RSASSAVerifier(autreClePublique))).isFalse();
         }
@@ -219,6 +219,23 @@ class JwtTokenGeneratorTest {
             assertThat(premierJti).isNotEqualTo(secondJti);
         }
 
+        /**
+         * Justifie l'objet valeur : la duree annoncee a l'appelant et l'ecart iat/exp inscrit
+         * dans le jeton proviennent de la meme source et ne peuvent pas diverger. C'est ce que
+         * consomme le endpoint pour renseigner expires_in.
+         */
+        @Test
+        @DisplayName("expose une duree de validite identique a l'ecart iat/exp du jeton")
+        void laDureeExposeeCorrespondAuClaimExp() throws Exception {
+            IssuedToken jeton = generator.generateToken(SUBJECT);
+            JWTClaimsSet claims = claimsDe(jeton);
+
+            assertThat(jeton.expiresIn()).isEqualTo(TOKEN_VALIDITY);
+            assertThat(jeton.expiresIn()).isEqualTo(Duration.between(
+                    claims.getIssueTime().toInstant(),
+                    claims.getExpirationTime().toInstant()));
+        }
+
         @Test
         @DisplayName("relit l'horloge a chaque appel plutot que de figer l'instant de construction")
         void relitLHorlogeAChaqueAppel() throws Exception {
@@ -266,7 +283,7 @@ class JwtTokenGeneratorTest {
         }
     }
 
-    private static JWTClaimsSet claimsDe(String token) throws ParseException {
-        return SignedJWT.parse(token).getJWTClaimsSet();
+    private static JWTClaimsSet claimsDe(IssuedToken jeton) throws ParseException {
+        return SignedJWT.parse(jeton.token()).getJWTClaimsSet();
     }
 }

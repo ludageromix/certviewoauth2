@@ -45,10 +45,10 @@ public class JwtTokenGenerator {
      * Emet un jeton signe pour le sujet donne.
      *
      * @param subject identifiant du sujet, obligatoire
-     * @return le JWT en serialisation compacte
+     * @return le JWT en serialisation compacte et sa duree de validite
      * @throws IllegalArgumentException si le sujet est absent ou vide
      */
-    public String generateToken(String subject) {
+    public IssuedToken generateToken(String subject) {
         if (subject == null || subject.isBlank()) {
             throw new IllegalArgumentException("Le sujet du jeton est obligatoire");
         }
@@ -76,6 +76,6 @@ public class JwtTokenGenerator {
         } catch (JOSEException e) {
             throw new IllegalStateException("Echec de la signature du jeton", e);
         }
-        return jwt.serialize();
+        return new IssuedToken(jwt.serialize(), validity);
     }
 }

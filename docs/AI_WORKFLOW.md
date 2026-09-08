@@ -84,9 +84,17 @@ On continue le TDD de TokenControllerTest pour couvrir les 3 cas suivants: Cas n
 
 15. Prompt validant l'option 2
 Je valide la deuxième option
-    Résultat: CATASTROPHE, l'agent vas au delà de ce que je lui ai demandé et passe à l'implémentation (au vert). Pour éviter qu'il ne s'emballe les pates si je lui demande de faire marche arrière, je décide de juste m'assurer qu'il a bien fait le travail que je ne lui ai pas demandé, et je m'assure de le scinder dans deux commits différents.
+    Résultat: CATASTROPHE, l'agent vas au delà de ce que je lui ai demandé et passe à l'implémentation (au vert). Pour éviter qu'il ne s'emballe les pates si je lui demande de faire marche arrière, je décide de juste m'assurer qu'il a bien fait le travail que je ne lui ai pas demandé, et je m'assure de le scinder dans deux commits différents. J'ai aussi établi des règles claires à suivre durant tout le projet dans CLAUDE.md.
 
 16. Prompt du test d'intégration (rattrapage)
 écrit le test d'intégration TokenEndpointIntegrationTest: Utilise @SpringBootTest et @AutoConfigureMockMvc (contexte Spring complet, pas de mock) et injecte MockMvc ainsi que le bean RsaKeyProvider. Fais le test principal :
 Fais un POST /oauth/token avec subject=certviewtestuser (formulaire). Récupère l'access_token du JSON de réponse. Parse-le avec SignedJWT.parse. Vérifie la signature avec RSASSAVerifier(provider.getPublicKey()). Vérifie que le sub est bien "certviewtestuser". Vérifie que le kid du header du JWT correspond exactement à provider.getKeyId(). Confirme-moi que tout passe au vert !
     Résultat: Vert!
+
+17. Prompt TDD du endpoint des clés publiques
+Crée JwksEndpointIntegrationTest avec @SpringBootTest et @AutoConfigureMockMvc (contexte Spring complet, vrai RsaKeyProvider injecté). Écris le test d'intégration pour GET /.well-known/jwks.json : Vérifie le statut 200 OK et la présence du tableau keys. Validation consommateur (Scénario réel) : Récupère la clé du JWKS publié, reconstruis la clé publique RSA (par exemple via Nimbus RSAKey.parse), et vérifie qu'elle valide la signature d'un jeton généré juste avant sur POST /oauth/token. Sécurité (liste blanche fermée) : Vérifie strictement que les seuls champs autorisés dans l'objet JWK sont kty, kid, use, alg, n et e. La présence de tout autre champ fait échouer le test. Lance les tests et arrête-toi strictement au rouge. N'écris pas encore l'implémentation.
+    Résultat: test d'intégration correct et au rouge comme attendu!
+
+18. Prompt d'implémentation de JwksController
+Passes à l'implémentation je JwksController.
+    Résultat: OK!

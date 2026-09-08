@@ -1,3 +1,9 @@
 spring:
   application:
     name: authorization-server
+
+certview:
+  token:
+    issuer: https://auth.certview.local
+    audience: certview-api
+    validity: 15m

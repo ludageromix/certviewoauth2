@@ -78,4 +78,15 @@ Ajoute un test de stabilité dans InMemoryRsaKeyProviderTest qui appelle getKeyI
 Implémente la classe InMemoryRsaKeyProvider. Dans le constructeur : Génère une paire de clés RSA 2048 bits. Calcule le kid une seule fois via RSAKey.computeThumbprint() de Nimbus (ou votre calcul JWK) pour la stabilité. Stocke la clé privée, la clé publique et le kid dans des champs final. Relance .\mvnw test et vérifie que tous les tests repassent bien au vert.
     Résultat: Tout est correct, l'implémentation est réussie.
 
-14. 
+14. Prompt TDD du controler de génération de token
+On continue le TDD de TokenControllerTest pour couvrir les 3 cas suivants: Cas nominal : POST /oauth/token avec subject=utilisateurcertview en formulaire (application/x-www-form-urlencoded). Attendu : HTTP 200, JSON avec access_token non vide, token_type = "Bearer", et expires_in. Sujet absent : POST sans paramètre. Attendu : HTTP 400. Sujet vide/blanc : POST avec subject= ou subject=   . Attendu : HTTP 400. Écris ces tests dans TokenControllerTest, lance .\mvnw test et montre-moi le rouge avant d'implémenter.
+    Résultat: Il fait le taf, mais pose une ambiguïté sur l'origine expires_in. Il me propose deux solutions: Le contrôleur reçoit la durée en configuration ou generateToken renvoie un objet valeur (IssuedToken avec le jeton et sa durée) au lieu d'une String. La deuxième est meilleure, je la choisis.
+
+15. Prompt validant l'option 2
+Je valide la deuxième option
+    Résultat: CATASTROPHE, l'agent vas au delà de ce que je lui ai demandé et passe à l'implémentation (au vert). Pour éviter qu'il ne s'emballe les pates si je lui demande de faire marche arrière, je décide de juste m'assurer qu'il a bien fait le travail que je ne lui ai pas demandé, et je m'assure de le scinder dans deux commits différents.
+
+16. Prompt du test d'intégration (rattrapage)
+écrit le test d'intégration TokenEndpointIntegrationTest: Utilise @SpringBootTest et @AutoConfigureMockMvc (contexte Spring complet, pas de mock) et injecte MockMvc ainsi que le bean RsaKeyProvider. Fais le test principal :
+Fais un POST /oauth/token avec subject=certviewtestuser (formulaire). Récupère l'access_token du JSON de réponse. Parse-le avec SignedJWT.parse. Vérifie la signature avec RSASSAVerifier(provider.getPublicKey()). Vérifie que le sub est bien "certviewtestuser". Vérifie que le kid du header du JWT correspond exactement à provider.getKeyId(). Confirme-moi que tout passe au vert !
+    Résultat: Vert!

@@ -116,3 +116,9 @@ crée HelloEndpointIntegrationTest dans le service resource-server (certviewoaut
 Écris le contrôleur HelloController : Déclare la classe sous @RestController. Crée le handler GET /api/hello. Récupère le jeton JWT via l'injection Spring Security @AuthenticationPrincipal Jwt. Renvoie une réponse contenant le sujet du jeton (jwt.getSubject()). Relance les tests et confirme-moi que toute la suite de tests passe désormais au vert !
 
     Résultat: Tout est OK. Il manque la config (port) du serveur de resource et la config de l'adresse du serveur d'autentication dans celui du serveur de resource.
+
+21. Prompt de configuration du serveur de ressources sur le port 8081 et avec l'endpoint du serveur d'autorisation
+
+ Configure le fichier application.yaml du serveur de ressources pour le faire tourner sur le port 8081 et pointer jwk-set-uri sur http://localhost:8080/.well-known/jwks.json (serveur d'autorisation)
+
+    Résultat: Configuration en place.

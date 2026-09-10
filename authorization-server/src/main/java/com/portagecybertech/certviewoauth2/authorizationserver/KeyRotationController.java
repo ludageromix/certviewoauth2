@@ -15,15 +15,15 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class KeyRotationController {
 
-    private final InMemoryRsaKeyProvider rsaKeyProvider;
+    private final RotatableKeyProvider rotatableKeyProvider;
 
-    public KeyRotationController(InMemoryRsaKeyProvider rsaKeyProvider) {
-        this.rsaKeyProvider = rsaKeyProvider;
+    public KeyRotationController(RotatableKeyProvider rotatableKeyProvider) {
+        this.rotatableKeyProvider = rotatableKeyProvider;
     }
 
     @PostMapping(path = "/admin/rotate-keys")
     public RotationResponse rotationnerLesCles() {
-        return new RotationResponse(rsaKeyProvider.rotateKeys());
+        return new RotationResponse(rotatableKeyProvider.rotateKeys());
     }
 
     /**

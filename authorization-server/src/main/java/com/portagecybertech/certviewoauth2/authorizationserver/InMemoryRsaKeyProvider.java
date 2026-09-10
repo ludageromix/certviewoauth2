@@ -16,7 +16,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * inverifiables. Convient au developpement et aux tests ; un deploiement multi-instance ou
  * durable demande un fournisseur adosse a un keystore ou a un coffre partage.</p>
  */
-public class InMemoryRsaKeyProvider implements RsaKeyProvider {
+public class InMemoryRsaKeyProvider implements RsaKeyProvider, RotatableKeyProvider {
 
     private static final int TAILLE_CLE_BITS = 2048;
 
@@ -39,11 +39,7 @@ public class InMemoryRsaKeyProvider implements RsaKeyProvider {
         return List.copyOf(clesPubliques);
     }
 
-    /**
-     * Genere une nouvelle paire, la promeut en cle active et conserve les precedentes.
-     *
-     * @return le {@code kid} de la nouvelle cle active
-     */
+    @Override
     public String rotateKeys() {
         return installerNouvelleCle();
     }

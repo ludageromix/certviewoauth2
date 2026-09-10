@@ -23,9 +23,10 @@ public class TokenConfiguration {
     }
 
     /**
-     * Type de retour concret : {@link KeyRotationController} a besoin de {@code rotateKeys()},
-     * absent de l'interface. Les autres consommateurs continuent d'etre injectes par
-     * {@link RsaKeyProvider} et ignorent la rotation.
+     * Type de retour concret pour qu'une instance unique satisfasse les deux interfaces :
+     * {@link RsaKeyProvider} pour le generateur et le JWKS, {@link RotatableKeyProvider} pour le
+     * declencheur de rotation. Les consommateurs, eux, ne dependent que de l'interface qui les
+     * concerne.
      */
     @Bean
     public InMemoryRsaKeyProvider rsaKeyProvider() {

@@ -122,3 +122,10 @@ crée HelloEndpointIntegrationTest dans le service resource-server (certviewoaut
  Configure le fichier application.yaml du serveur de ressources pour le faire tourner sur le port 8081 et pointer jwk-set-uri sur http://localhost:8080/.well-known/jwks.json (serveur d'autorisation)
 
     Résultat: Configuration en place.
+
+22. Prompt pour le test d'intégration de la rotation de clés à chaud (Resource Server)
+
+On va tester la rotation de clés à chaud directement dans HelloEndpointIntegrationTest. Attention, règle d'or : on ne touche à rien dans le code de production (ni le contrôleur, ni la sécu). On veut vérifier le comportement natif de Spring Security.Voici la marche à suivre :Génère une deuxième paire de clés (key2 / kid_2) dans le test. Envoie un 1er jeton signé avec key1 -> valide qu'on a un 200 OK. Mets à jour le MockWebServer pour que son JWKS renvoie les deux clés (kid_1 et kid_2). Envoie un 2ème jeton signé avec key2 -> on attend un 200 OK (rechargement à la volée). Re-teste le 1er jeton -> on attend toujours un 200 OK.(Remarque : si Spring Security bloque le 2ème jeton à cause de sa protection anti-spam/cooldown sur les requêtes JWKS, signale-le-moi simplement). Lance le test et montre-moi le résultat.
+
+    Résultat: La rotation à chaud fonctionne, et c'est vérifié plutôt que supposé.
+

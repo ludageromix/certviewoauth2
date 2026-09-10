@@ -29,6 +29,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Date;
+import java.util.List;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
@@ -57,6 +58,15 @@ class HelloEndpointIntegrationTest {
      */
     private static final RSAKey CLE_DE_TEST = genererCleDeTest();
 
+    /** Seconde paire, absente du JWKS au demarrage : elle n'y est ajoutee que par la rotation. */
+    private static final RSAKey CLE_DE_ROTATION = genererCleDeTest();
+
+    /**
+     * Contenu courant du JWKS servi par le mock. Mutable et {@code volatile} : la rotation le
+     * remplace depuis le thread de test, le dispatcher le lit depuis un thread du serveur.
+     */
+    private static volatile JWKSet jwksPublie = new JWKSet(CLE_DE_TEST.toPublicJWK());
+
     private static MockWebServer serveurAutorisation;
 
     @Autowired
@@ -75,7 +85,7 @@ class HelloEndpointIntegrationTest {
                     return new MockResponse()
                             .setResponseCode(200)
                             .setHeader("Content-Type", "application/json")
-                            .setBody(new JWKSet(CLE_DE_TEST.toPublicJWK()).toString());
+                            .setBody(jwksPublie.toString());
                 }
                 return new MockResponse().setResponseCode(404);
             }
@@ -111,12 +121,38 @@ class HelloEndpointIntegrationTest {
     @Test
     @DisplayName("repond 200 et nomme le sujet pour un jeton signe par la cle publiee")
     void accepteUnJetonSigneParLaCleDuJwks() throws Exception {
-        mockMvc.perform(get("/api/hello").header(AUTHORIZATION, "Bearer " + jetonValide()))
+        mockMvc.perform(get("/api/hello").header(AUTHORIZATION, "Bearer " + jetonSignePar(CLE_DE_TEST)))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString(SUJET)));
     }
 
-    private static String jetonValide() throws JOSEException {
+    /**
+     * Rotation a chaud, du point de vue du resource server : une cle apparait dans le JWKS
+     * pendant que l'application tourne, sans redemarrage ni reconfiguration. Le code de
+     * production n'est pas sollicite differemment — seul le document distant change.
+     */
+    @Test
+    @DisplayName("accepte un jeton signe par une cle ajoutee au JWKS apres le premier appel")
+    void accepteUneCleAjouteeParRotation() throws Exception {
+        // 1. La premiere cle est la seule publiee : le resource server charge le JWKS ici.
+        mockMvc.perform(get("/api/hello").header(AUTHORIZATION, "Bearer " + jetonSignePar(CLE_DE_TEST)))
+                .andExpect(status().isOk());
+
+        // 2. Le serveur d'autorisation publie desormais les deux cles.
+        jwksPublie = new JWKSet(List.of(CLE_DE_TEST.toPublicJWK(), CLE_DE_ROTATION.toPublicJWK()));
+
+        // 3. Un kid inconnu du cache doit provoquer un rechargement du JWKS.
+        mockMvc.perform(get("/api/hello").header(AUTHORIZATION, "Bearer " + jetonSignePar(CLE_DE_ROTATION)))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString(SUJET)));
+
+        // 4. L'ancienne cle reste valide : une rotation ajoute, elle ne remplace pas.
+        mockMvc.perform(get("/api/hello").header(AUTHORIZATION, "Bearer " + jetonSignePar(CLE_DE_TEST)))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString(SUJET)));
+    }
+
+    private static String jetonSignePar(RSAKey cle) throws JOSEException {
         Instant maintenant = Instant.now();
         JWTClaimsSet claims = new JWTClaimsSet.Builder()
                 .subject(SUJET)
@@ -124,11 +160,11 @@ class HelloEndpointIntegrationTest {
                 .expirationTime(Date.from(maintenant.plus(Duration.ofMinutes(15))))
                 .build();
         JWSHeader header = new JWSHeader.Builder(JWSAlgorithm.RS256)
-                .keyID(CLE_DE_TEST.getKeyID())
+                .keyID(cle.getKeyID())
                 .build();
 
         SignedJWT jwt = new SignedJWT(header, claims);
-        jwt.sign(new RSASSASigner(CLE_DE_TEST.toRSAPrivateKey()));
+        jwt.sign(new RSASSASigner(cle.toRSAPrivateKey()));
         return jwt.serialize();
     }
 

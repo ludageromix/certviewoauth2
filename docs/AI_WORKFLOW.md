@@ -146,3 +146,21 @@ C'est parti pour le passage au vert ! On implémente la rotation sur l'Authoriza
 Extrais une interface RotatableKeyProvider avec la seule méthode String rotateKeys(). InMemoryRsaKeyProvider implémente désormais RsaKeyProvider et RotatableKeyProvider. KeyRotationController dépend de RotatableKeyProvider, plus du type concret. Ajuste TokenConfiguration en conséquence. Aucun changement de comportement : les 38 tests doivent rester verts.
 
     Résultat: Refactoring propre, comportement constant.
+
+26. Prompt TDD validation des claims l'audience (aud) et l'issuer (iss)
+
+On ferme le dernier trou de sécurité en TDD : par défaut, le serveur de ressources valide la signature RSA, mais ne vérifie ni qui a émis le jeton (iss), ni à qui il est destiné (aud). 1. D'abord le ROUGE Dans HelloEndpointIntegrationTest, ajoute deux tests d'échec (attendu : 401 Unauthorized) : Audience invalide : jeton bien signé, mais avec aud = "autre-api". Émetteur invalide : jeton bien signé, mais avec iss = "http://mauvais-emetteur". Ajoute également l'iss et l'aud attendus aux jetons des tests existants, pour qu'ils restent valides une fois la validation en place. Relance .\mvnw test et arrête-toi au rouge.
+
+    Résultat: Test correct en rouge. L'agent soulève un point crucial: Les valeurs attendues sont codées en dur dans le test. Elles devront correspondre à ce que le resource-server exigera en production, or il n'a aujourd'hui aucune propriété pour les déclarer. Solution: Un JwtDecoder personnalisé avec JwtValidators + un validateur d'audience, alimenté par deux propriétés du resource-server (certview.token.issuer / .audience). Aucun changement côté authorization-server, et le test pourrait alors les fixer par @DynamicPropertySource plutôt que de dépendre du application.yaml de production.
+
+27. Prompt de validation de l'émetteur et de l'audience côté serveur de ressources
+
+Les deux tests sont au rouge. On passe au vert sur le Resource Server. Deux contraintes : Découplage : le Resource Server déclare ses propres attentes — il ne lit pas la configuration du serveur d'autorisation. Ne pas casser exp : en personnalisant le JwtDecoder, la vérification d'expiration doit rester active. 1. Configuration — dans resource-server/src/main/resources/application.yaml : yaml certview: token: issuer: "https://auth.certview.local" audience: "certview-api" 2. JwtDecoder — un NimbusJwtDecoder construit sur le jwk-set-uri déjà configuré : seule la validation des claims change, la récupération des clés reste inchangée. Sa chaîne de validation lit les deux propriétés ci-dessus et combine, via DelegatingOAuth2TokenValidator : JwtValidators.createDefaultWithIssuer(issuer), qui conserve la vérification de exp et ajoute celle de iss — l'issuer venant de certview.token.issuer ; un validateur d'audience vérifiant que le claim aud contient la valeur de certview.token.audience. 3. Test — dans HelloEndpointIntegrationTest, injecte ces deux propriétés par @DynamicPropertySource, en plus du jwk-set-uri déjà présent. Relance .\mvnw test. Attendu : les deux tests d'échec passent au 401, les cinq autres restent verts.
+
+    Résultat: OK
+
+28. Prompt test de non-régression sur la vérification d'expiration
+
+Ajoute dans HelloEndpointIntegrationTest un test qui verrouille la vérification de exp, aujourd'hui garantie uniquement par la sémantique de createDefaultWithIssuer et par aucune exécution. Le test : un jeton correctement signé, avec un iss et un aud valides, mais dont exp est dans le passé. Attendu : 401 Unauthorized. Ne dévie que sur ce claim — les autres restent corrects, pour qu'un échec ne puisse pas être attribué à autre chose. Relance .\mvnw test et confirme que le test passe.
+
+    Résultat: Tout est au vert!

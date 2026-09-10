@@ -9,3 +9,8 @@ spring:
       resourceserver:
         jwt:
           jwk-set-uri: http://localhost:8080/.well-known/jwks.json
+
+certview:
+  token:
+    issuer: "https://auth.certview.local"
+    audience: "certview-api"

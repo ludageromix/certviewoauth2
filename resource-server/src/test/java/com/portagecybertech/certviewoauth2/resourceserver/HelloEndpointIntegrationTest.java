@@ -52,6 +52,10 @@ class HelloEndpointIntegrationTest {
     private static final String CHEMIN_JWKS = "/.well-known/jwks.json";
     private static final String SUJET = "certviewuser";
 
+    /** Valeurs emises par l'authorization-server : ce sont elles que le resource server doit exiger. */
+    private static final String EMETTEUR_ATTENDU = "https://auth.certview.local";
+    private static final String AUDIENCE_ATTENDUE = "certview-api";
+
     /**
      * Paire de test, initialisee au chargement de la classe : {@link DynamicPropertySource} et
      * le demarrage du contexte interviennent apres, et ont besoin du serveur deja demarre.
@@ -102,6 +106,10 @@ class HelloEndpointIntegrationTest {
     static void pointerVersLeJwksDeTest(DynamicPropertyRegistry registry) {
         registry.add("spring.security.oauth2.resourceserver.jwt.jwk-set-uri",
                 () -> serveurAutorisation.url(CHEMIN_JWKS).toString());
+        // Attentes injectees plutot que reprises de application.yaml : le test fixe lui-meme le
+        // contrat qu'il verifie, et ne casserait pas si la configuration de production changeait.
+        registry.add("certview.token.issuer", () -> EMETTEUR_ATTENDU);
+        registry.add("certview.token.audience", () -> AUDIENCE_ATTENDUE);
     }
 
     @Test
@@ -124,6 +132,52 @@ class HelloEndpointIntegrationTest {
         mockMvc.perform(get("/api/hello").header(AUTHORIZATION, "Bearer " + jetonSignePar(CLE_DE_TEST)))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString(SUJET)));
+    }
+
+    /**
+     * Signature valide mais jeton destine a une autre API : accepter un tel jeton permettrait a
+     * un service tiers, legitime aupres du meme emetteur, de rejouer ses jetons ici.
+     */
+    @Test
+    @DisplayName("repond 401 pour un jeton destine a une autre audience")
+    void refuseUneAudienceEtrangere() throws Exception {
+        String jeton = jetonSignePar(CLE_DE_TEST, EMETTEUR_ATTENDU, "autre-api");
+
+        mockMvc.perform(get("/api/hello").header(AUTHORIZATION, "Bearer " + jeton))
+                .andExpect(status().isUnauthorized());
+    }
+
+    /**
+     * Signature valide mais emetteur inattendu : sans cette verification, tout emetteur dont une
+     * cle figure au JWKS pourrait fabriquer des identites sur ce service.
+     */
+    @Test
+    @DisplayName("repond 401 pour un jeton d'un emetteur inattendu")
+    void refuseUnEmetteurInattendu() throws Exception {
+        String jeton = jetonSignePar(CLE_DE_TEST, "http://mauvais-emetteur", AUDIENCE_ATTENDUE);
+
+        mockMvc.perform(get("/api/hello").header(AUTHORIZATION, "Bearer " + jeton))
+                .andExpect(status().isUnauthorized());
+    }
+
+    /**
+     * Verrouille la verification de exp, sans quoi elle ne tiendrait qu'a la semantique de
+     * {@code JwtValidators.createDefaultWithIssuer} : remplacer cet appel par un
+     * {@code JwtIssuerValidator} seul supprimerait la chaine par defaut — donc le controle
+     * d'expiration — sans qu'aucun autre test ne bronche.
+     *
+     * <p>L'expiration est reculee de 15 minutes, bien au-dela de la tolerance d'horloge de 60
+     * secondes appliquee par defaut : le test ne doit pas dependre de cette marge.</p>
+     */
+    @Test
+    @DisplayName("repond 401 pour un jeton expire")
+    void refuseUnJetonExpire() throws Exception {
+        Instant maintenant = Instant.now();
+        String jeton = jetonSignePar(CLE_DE_TEST, EMETTEUR_ATTENDU, AUDIENCE_ATTENDUE,
+                maintenant.minus(Duration.ofMinutes(30)), maintenant.minus(Duration.ofMinutes(15)));
+
+        mockMvc.perform(get("/api/hello").header(AUTHORIZATION, "Bearer " + jeton))
+                .andExpect(status().isUnauthorized());
     }
 
     /**
@@ -153,11 +207,22 @@ class HelloEndpointIntegrationTest {
     }
 
     private static String jetonSignePar(RSAKey cle) throws JOSEException {
+        return jetonSignePar(cle, EMETTEUR_ATTENDU, AUDIENCE_ATTENDUE);
+    }
+
+    private static String jetonSignePar(RSAKey cle, String emetteur, String audience) throws JOSEException {
         Instant maintenant = Instant.now();
+        return jetonSignePar(cle, emetteur, audience, maintenant, maintenant.plus(Duration.ofMinutes(15)));
+    }
+
+    private static String jetonSignePar(RSAKey cle, String emetteur, String audience,
+                                        Instant emisA, Instant expireA) throws JOSEException {
         JWTClaimsSet claims = new JWTClaimsSet.Builder()
+                .issuer(emetteur)
                 .subject(SUJET)
-                .issueTime(Date.from(maintenant))
-                .expirationTime(Date.from(maintenant.plus(Duration.ofMinutes(15))))
+                .audience(audience)
+                .issueTime(Date.from(emisA))
+                .expirationTime(Date.from(expireA))
                 .build();
         JWSHeader header = new JWSHeader.Builder(JWSAlgorithm.RS256)
                 .keyID(cle.getKeyID())

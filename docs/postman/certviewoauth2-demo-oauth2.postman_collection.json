@@ -1,0 +1,313 @@
+{
+  "info": {
+    "_postman_id": "ad043bcc-663e-430f-b50b-b4650fb3b410",
+    "name": "certviewoauth2 — démo OAuth2",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "57957785",
+    "_collection_link": "https://go.postman.co/collection/57957785-ad043bcc-663e-430f-b50b-b4650fb3b410?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "Obtenir un jeton (alice)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "var json = pm.response.json();",
+              "pm.collectionVariables.set(\"token_a\", json.access_token);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "subject",
+              "value": "alice"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{auth_url}}/oauth/token",
+          "host": [
+            "{{auth_url}}"
+          ],
+          "path": [
+            "oauth",
+            "token"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Appel protégé avec le jeton A",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token_a}}"
+          }
+        ],
+        "url": {
+          "raw": "{{resource_url}}/api/hello",
+          "host": [
+            "{{resource_url}}"
+          ],
+          "path": [
+            "api",
+            "hello"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Rotation de clé",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{auth_url}}/admin/rotate-keys",
+          "host": [
+            "{{auth_url}}"
+          ],
+          "path": [
+            "admin",
+            "rotate-keys"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Obtenir un jeton (bob, nouvelle clé)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "var json = pm.response.json();",
+              "pm.collectionVariables.set(\"token_b\", json.access_token);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "subject",
+              "value": "bob"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{auth_url}}/oauth/token",
+          "host": [
+            "{{auth_url}}"
+          ],
+          "path": [
+            "oauth",
+            "token"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Appel avec le jeton B",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token_b}}"
+          }
+        ],
+        "url": {
+          "raw": "{{resource_url}}/api/hello",
+          "host": [
+            "{{resource_url}}"
+          ],
+          "path": [
+            "api",
+            "hello"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Continuité de service — jeton A après rotation",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token_a}}"
+          }
+        ],
+        "url": {
+          "raw": "{{resource_url}}/api/hello",
+          "host": [
+            "{{resource_url}}"
+          ],
+          "path": [
+            "api",
+            "hello"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Sans jeton",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status is 401\", function () {",
+              "    pm.response.to.have.status(401);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{resource_url}}/api/hello",
+          "host": [
+            "{{resource_url}}"
+          ],
+          "path": [
+            "api",
+            "hello"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "JWKS après rotation",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status is 200\", function () {\n    pm.response.to.have.status(200);\n});\npm.test(\"JWKS contient deux clés\", function () {\n    var json = pm.response.json();\n    pm.expect(json.keys).to.be.an(\"array\").with.lengthOf(2);\n});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{auth_url}}/.well-known/jwks.json",
+          "host": [
+            "{{auth_url}}"
+          ],
+          "path": [
+            ".well-known",
+            "jwks.json"
+          ]
+        },
+        "description": "Suppose un serveur d'autorisation fraîchement démarré. Le registre de clés n'a pas de politique de rétention : chaque rotation ajoute une clé sans en retirer aucune, donc rejouer la collection sans redémarrer fait échouer l'assertion sur deux clés."
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "auth_url",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "resource_url",
+      "value": "http://localhost:8081"
+    },
+    {
+      "key": "token_a",
+      "value": ""
+    },
+    {
+      "key": "token_b",
+      "value": ""
+    }
+  ]
+}

@@ -78,8 +78,7 @@ class JwtTokenGeneratorTest {
     void preparerLeGenerateur() {
         // lenient() : les cas d'erreur (sujet invalide) echouent avant d'atteindre le provider,
         // ce qui declencherait sinon une UnnecessaryStubbingException du runner strict.
-        lenient().when(rsaKeyProvider.getPrivateKey()).thenReturn(privateKey);
-        lenient().when(rsaKeyProvider.getKeyId()).thenReturn(KEY_ID);
+        lenient().when(rsaKeyProvider.getSigningKey()).thenReturn(new SigningKey(KEY_ID, privateKey));
 
         Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
         generator = new JwtTokenGenerator(rsaKeyProvider, clock, ISSUER, AUDIENCE, TOKEN_VALIDITY);
@@ -148,13 +147,16 @@ class JwtTokenGeneratorTest {
             assertThat(jwt.verify(new RSASSAVerifier(autreClePublique))).isFalse();
         }
 
+        /**
+         * Un seul appel, et non deux : kid et cle privee doivent provenir de la meme lecture,
+         * sinon une rotation intercalee ferait signer par une cle et annoncer l'autre.
+         */
         @Test
-        @DisplayName("obtient cle privee et kid aupres du RsaKeyProvider")
+        @DisplayName("obtient la cle active en un seul appel au RsaKeyProvider")
         void delegueLObtentionDeLaCleAuProvider() {
             generator.generateToken(SUBJECT);
 
-            verify(rsaKeyProvider, times(1)).getPrivateKey();
-            verify(rsaKeyProvider, times(1)).getKeyId();
+            verify(rsaKeyProvider, times(1)).getSigningKey();
         }
     }
 

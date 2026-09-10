@@ -66,13 +66,17 @@ public class JwtTokenGenerator {
                 .expirationTime(Date.from(issuedAt.plus(validity)))
                 .build();
 
+        // Un seul appel au fournisseur : kid et cle privee doivent provenir de la meme lecture,
+        // sinon une rotation concurrente pourrait signer avec une cle et annoncer l'autre.
+        SigningKey signingKey = rsaKeyProvider.getSigningKey();
+
         JWSHeader header = new JWSHeader.Builder(JWSAlgorithm.RS256)
-                .keyID(rsaKeyProvider.getKeyId())
+                .keyID(signingKey.kid())
                 .build();
 
         SignedJWT jwt = new SignedJWT(header, claims);
         try {
-            jwt.sign(new RSASSASigner(rsaKeyProvider.getPrivateKey()));
+            jwt.sign(new RSASSASigner(signingKey.privateKey()));
         } catch (JOSEException e) {
             throw new IllegalStateException("Echec de la signature du jeton", e);
         }

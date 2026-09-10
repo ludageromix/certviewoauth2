@@ -22,8 +22,13 @@ public class TokenConfiguration {
         return Clock.systemUTC();
     }
 
+    /**
+     * Type de retour concret : {@link KeyRotationController} a besoin de {@code rotateKeys()},
+     * absent de l'interface. Les autres consommateurs continuent d'etre injectes par
+     * {@link RsaKeyProvider} et ignorent la rotation.
+     */
     @Bean
-    public RsaKeyProvider rsaKeyProvider() {
+    public InMemoryRsaKeyProvider rsaKeyProvider() {
         return new InMemoryRsaKeyProvider();
     }
 

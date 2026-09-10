@@ -38,9 +38,9 @@ class InMemoryRsaKeyProviderTest {
     @Test
     @DisplayName("expose une cle privee RSA d'au moins 2048 bits et un kid exploitable")
     void exposeUneClePriveeEtUnKid() {
-        assertThat(provider.getPrivateKey()).isNotNull();
-        assertThat(provider.getPrivateKey().getModulus().bitLength()).isGreaterThanOrEqualTo(2048);
-        assertThat(provider.getKeyId()).isNotBlank();
+        assertThat(provider.getSigningKey().privateKey()).isNotNull();
+        assertThat(provider.getSigningKey().privateKey().getModulus().bitLength()).isGreaterThanOrEqualTo(2048);
+        assertThat(provider.getSigningKey().kid()).isNotBlank();
     }
 
     /**
@@ -55,7 +55,7 @@ class InMemoryRsaKeyProviderTest {
     @Test
     @DisplayName("derive le kid du JWK Thumbprint SHA-256 de la cle publique")
     void leKidEstLEmpreinteDeLaClePublique() throws Exception {
-        RSAPublicKey publicKey = provider.getPublicKey();
+        RSAPublicKey publicKey = provider.getAllPublicKeys().getFirst().toRSAPublicKey();
 
         String jwkCanonique = "{\"e\":\"" + base64Url(publicKey.getPublicExponent())
                 + "\",\"kty\":\"RSA\",\"n\":\"" + base64Url(publicKey.getModulus()) + "\"}";
@@ -63,7 +63,7 @@ class InMemoryRsaKeyProviderTest {
                 .digest(jwkCanonique.getBytes(StandardCharsets.UTF_8));
         String kidAttendu = ENCODEUR.encodeToString(empreinte);
 
-        assertThat(provider.getKeyId()).isEqualTo(kidAttendu);
+        assertThat(provider.getSigningKey().kid()).isEqualTo(kidAttendu);
     }
 
     /**
@@ -75,7 +75,7 @@ class InMemoryRsaKeyProviderTest {
     @Test
     @DisplayName("retourne le meme kid a chaque appel")
     void leKidEstStableEntreDeuxAppels() {
-        assertThat(provider.getKeyId()).isEqualTo(provider.getKeyId());
+        assertThat(provider.getSigningKey().kid()).isEqualTo(provider.getSigningKey().kid());
     }
 
     /**

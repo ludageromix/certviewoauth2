@@ -47,8 +47,8 @@ class TokenEndpointIntegrationTest {
         String accessToken = JsonPath.read(corps, "$.access_token");
         SignedJWT jwt = SignedJWT.parse(accessToken);
 
-        assertThat(jwt.verify(new RSASSAVerifier(rsaKeyProvider.getPublicKey()))).isTrue();
+        assertThat(jwt.verify(new RSASSAVerifier(rsaKeyProvider.getAllPublicKeys().getFirst().toRSAPublicKey()))).isTrue();
         assertThat(jwt.getJWTClaimsSet().getSubject()).isEqualTo(SUJET);
-        assertThat(jwt.getHeader().getKeyID()).isEqualTo(rsaKeyProvider.getKeyId());
+        assertThat(jwt.getHeader().getKeyID()).isEqualTo(rsaKeyProvider.getSigningKey().kid());
     }
 }

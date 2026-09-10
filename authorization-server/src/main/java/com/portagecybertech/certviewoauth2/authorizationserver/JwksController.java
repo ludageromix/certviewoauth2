@@ -1,12 +1,11 @@
 package com.portagecybertech.certviewoauth2.authorizationserver;
 
-import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.JWKSet;
-import com.nimbusds.jose.jwk.KeyUse;
-import com.nimbusds.jose.jwk.RSAKey;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -23,15 +22,13 @@ public class JwksController {
 
     @GetMapping(path = "/.well-known/jwks.json")
     public Map<String, Object> publierJwks() {
-        RSAKey jwk = new RSAKey.Builder(rsaKeyProvider.getPublicKey())
-                .keyID(rsaKeyProvider.getKeyId())
-                .keyUse(KeyUse.SIGNATURE)
-                .algorithm(JWSAlgorithm.RS256)
-                .build();
+        // toPublicJWK() sur chacune : ce document est servi publiquement et ne doit jamais
+        // contenir les membres prives d'une cle RSA (d, p, q, dp, dq, qi). La reduction est
+        // appliquee ici a toutes les cles, y compris celles heritees des rotations passees.
+        List<JWK> clesPubliques = rsaKeyProvider.getAllPublicKeys().stream()
+                .map(JWK::toPublicJWK)
+                .toList();
 
-        // toPublicJWK() est redondant avec un builder alimente par la seule cle publique, mais
-        // il rend la reduction explicite : ce document est servi publiquement et ne doit jamais
-        // contenir les membres prives d'une cle RSA (d, p, q, dp, dq, qi).
-        return new JWKSet(jwk.toPublicJWK()).toJSONObject();
+        return new JWKSet(clesPubliques).toJSONObject();
     }
 }
